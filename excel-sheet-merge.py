@@ -12,7 +12,7 @@ import em_util
 def parse_patch(lines: List[str]):
     commands = []
     sheet_name = lines[0].split("/")[-1].replace(".csv", "")
-    diffs = lines[4:]
+    diffs = lines[5:]
     for i, d in enumerate(diffs):
         if d.startswith("@@ "):
             info = d.replace("@@ ", "").replace(" @@", "")
@@ -161,7 +161,7 @@ def sheet_merge(wb, cmds: List):
 
 def get_diff_unified(cached: str) -> List:
     cmd1 = f"git diff {cached} --unified=0 --name-only -- *.csv"
-    output_names = subprocess.run(cmd1, capture_output=True, text=True).stdout
+    output_names = subprocess.run(cmd1, capture_output=True, encoding="utf-8", errors='replace').stdout
     if output_names == "":
         return []
 
@@ -169,8 +169,10 @@ def get_diff_unified(cached: str) -> List:
     patches = []
     for fn in files:
         cmd2 = f"git diff {cached} --unified=0 {fn}"
-        output_str = subprocess.run(cmd2, capture_output=True, text=True).stdout
-        patches.append(output_str.split("\n"))
+        output_str = subprocess.run(cmd2, capture_output=True, encoding="cp932", errors='replace').stdout
+        ary = output_str.split("\n")
+        ary.insert(0, fn)
+        patches.append(ary)
     return patches
 
 
