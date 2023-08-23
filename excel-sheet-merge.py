@@ -1,4 +1,5 @@
 # coding=utf-8
+import csv
 import os
 import subprocess
 import sys
@@ -15,22 +16,43 @@ def parse_patch(lines: List[str]):
     diffs = lines[5:]
     for i, d in enumerate(diffs):
         if d.startswith("@@ "):
+            subcommands = []
             info = d.replace("@@ ", "").replace(" @@", "")
-            try:
-                cmd = parse_line_info(info)
-            except:
-                raise Exception(f"Parse error: {sheet_name}, {d}")
-            cmd["sheetname"] = sheet_name
-            if cmd["type"] == "set":
-                r = int(cmd["range"])
-                ch = [x[1:] for x in diffs[i+1+r:i+1+r*2]]
-                cmd["data"] = ch
-                commands.append(cmd)
-            if cmd["type"] == "add" or cmd["type"] == "delete":
-                r = int(cmd["range"])
-                ch = [x[1:] for x in diffs[i+1:i+1+r]]
-                cmd["data"] = ch
-                commands.append(cmd)
+            row_index = parse_line_info(info)
+            ddm = []
+            ddp = []
+            for x in range(i+1, len(diffs)):
+                if diffs[x].startswith("-"):
+                    ddm.append(diffs[x])
+                elif diffs[x].startswith("+"):
+                    ddp.append(diffs[x][1:])
+                elif diffs[x].startswith("@@ "):
+                    break
+                else:
+                    break
+            df = len(ddp) - len(ddm)
+            if df > 0:
+                subcommands.append({
+                    "cmd": "addrow",
+                    "row": row_index,
+                    "range": df,
+                    "sheetname": sheet_name
+                })
+            elif df < 0:
+                subcommands.append({
+                    "cmd": "delrow",
+                    "row": row_index,
+                    "range": abs(df),
+                    "sheetname": sheet_name
+                })
+            if len(ddp) > 0:
+                subcommands.append({
+                    "cmd": "setvalue",
+                    "row": row_index,
+                    "data": ddp,
+                    "sheetname": sheet_name
+                })
+            commands.append(subcommands)
     return commands
 
 
@@ -38,125 +60,56 @@ def parse_line_info(line_info: str):
     diff = line_info.replace("-", "").replace("+", "").split(" ")
     pre = diff[0]
     post = diff[1]
-    if pre.find(",") == -1 and post.find(",") == -1:
-        # changeval
-        assert pre == post
-        return {
-            "type": "set",
-            "line1": pre,
-            "line2": post,
-            "range": 1,
-            "data": [],
-            "sheetname": ""
-        }
-    if pre.find(",") != -1 and post.find(",") != -1:
-        # addcol, delcol, changeval2
-        r1 = pre.split(",")
-        r2 = post.split(",")
-        if r1[1] == "0":
-            return {
-                "type": "add",
-                "line1": r1[0],
-                "line2": r2[0],
-                "range": r2[1],
-                "data": [],
-                "sheetname": ""
-            }
-        elif r2[1] == "0":
-            return {
-                "type": "delete",
-                "line1": r1[0],
-                "line2": r2[0],
-                "range": r1[1],
-                "data": [],
-                "sheetname": ""
-            }
-        else:
-            # assert pre == post
-            # assert r1[1] == r2[1]
-            return {
-                "type": "set",
-                "line1": r1[0],
-                "line2": r2[0],
-                "range": r1[1],
-                "data": [],
-                "sheetname": ""
-            }
-    if pre.find(",") != -1 and post.find(",") == -1:
-        # addrow
-        r1 = pre.split(",")
-        return {
-            "type": "add",
-            "line1": r1[0],
-            "line2": post,
-            "range": 1,
-            "data": [],
-            "sheetname": ""
-        }
-    if pre.find(",") == -1 and post.find(",") != -1:
-        # delrow
-        r2 = post.split(",")
-        return {
-            "type": "delete",
-            "line1": pre,
-            "line2": r2[0],
-            "range": 1,
-            "data": [],
-            "sheetname": ""
-        }
-    raise Exception
+    if pre.find(",") == -1:
+        return int(pre)
+    else:
+        return int(pre.split(",")[0])
 
 
 def sheet_merge(wb, cmds: List):
     cmds.reverse()
-    sheetname = cmds[0]["sheetname"]
-    if sheetname in wb.sheetnames:
-        ws = wb[sheetname]
-    else:
-        wb.create_sheet(index=0, title=sheetname)
-        ws = wb[sheetname]
-
-    row_offset = em_util.get_row_offset(ws)
-    for c in cmds:
-        if c["type"] == "delete":
-            print(f"merge: delete {sheetname}")
-            row = int(c["line1"]) + row_offset
-            for ri in reversed(range(int(c["range"]))):
-                ws.delete_rows(row + ri)
-        if c["type"] == "add":
-            print(f"merge: add {sheetname}")
-            row = int(c["line1"]) + 1 + row_offset
-            for ri in range(int(c["range"])):
-                ws.insert_rows(row + ri)
-            datalist = c["data"]
-            for data in datalist:
-                values = data.split(",")
-                for ci, v in enumerate(values):
-                    c1 = ws.cell(row=row, column=ci + 1)
-                    if em_util.isint(v):
-                        c1.value = int(v)
-                    elif em_util.isfloat(v):
-                        c1.value = float(v)
-                    else:
-                        c1.value = v
-                row = row + 1
-        if c["type"] == "set":
-            print(f"merge: set {sheetname}")
-            row = int(c["line1"]) + row_offset
-            datalist = c["data"]
-            for data in datalist:
-                for cell in ws[row]:
-                    cell.value = None
-                values = data.split(",")
-                for ci, v in enumerate(values):
-                    c1 = ws.cell(row=row, column=ci + 1)
-                    if em_util.isint(v):
-                        c1.value = int(v)
-                    elif em_util.isfloat(v):
-                        c1.value = float(v)
-                    else:
-                        c1.value = v
-                row = row + 1
+    print(f"merge: {cmds[0][0]['sheetname']}")
+    for subcmds in cmds:
+        sheetname = subcmds[0]["sheetname"]
+        if sheetname in wb.sheetnames:
+            ws = wb[sheetname]
+        else:
+            wb.create_sheet(index=0, title=sheetname)
+            ws = wb[sheetname]
+        row_offset = em_util.get_row_offset(ws)
+        do_addrow = False
+        for c in subcmds:
+            row_index = c["row"] + row_offset
+            if c["cmd"] == "addrow":
+                print(f"\t{c['cmd']} row_index={row_index+1}, range={c['range']}")
+                for ri in range(c["range"]):
+                    do_addrow = True
+                    ws.insert_rows(row_index + 1)
+            if c["cmd"] == "delrow":
+                print(f"\t{c['cmd']} row_index={row_index+1}, range={c['range']}")
+                for ri in reversed(range(c["range"])):
+                    ws.delete_rows(row_index + ri)
+            if c["cmd"] == "setvalue":
+                row_shift = 0
+                if do_addrow:
+                    row_shift = 1
+                row = row_index
+                csv_lines = list(csv.reader(
+                    c["data"], quotechar='"', delimiter=',',
+                    quoting=csv.QUOTE_MINIMAL, skipinitialspace=True))
+                print(f"\tsetvalue row_index={row + row_shift}, range={len(csv_lines)}")
+                for csv_values in csv_lines:
+                    for cell in ws[row+row_shift]:
+                        cell.value = None
+                    for ci, v in enumerate(csv_values):
+                        c1 = ws.cell(row=row+row_shift, column=ci + 1)
+                        if em_util.isint(v):
+                            c1.value = int(v)
+                        elif em_util.isfloat(v):
+                            c1.value = float(v)
+                        else:
+                            c1.value = v
+                    row = row + 1
 
 
 def get_diff_unified(cached: str) -> List:
