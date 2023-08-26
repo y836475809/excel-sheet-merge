@@ -2,6 +2,7 @@
 import os
 import sys
 
+import util
 from merge_excel_sheet import MergeExcelSheet
 
 
@@ -16,6 +17,10 @@ if __name__ == "__main__":
     if len(args) < 2:
         print(f"invalid argument")
         print(f"usage: {os.path.basename(args[0])} excel_filepath [no-staged]")
+        sys.exit()
+
+    if not util.git_core_quotepath_is_false():
+        print(f"Need to add 'quotepath=false' in core section of .gitconfig")
         sys.exit()
 
     if len(args) < 3:

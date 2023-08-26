@@ -1,4 +1,5 @@
 # coding=utf-8
+import subprocess
 
 
 def isint(s):
@@ -34,4 +35,12 @@ def is_row_empty(row):
         if cell.value is not None:
             return False
     return True
+
+
+def git_core_quotepath_is_false() -> bool:
+    cmd = "git config core.quotepath"
+    output = subprocess.run(cmd, capture_output=True, shell=True,
+                            encoding="utf-8", errors='replace').stdout
+    quotepath = output.replace("\n", "")
+    return quotepath == "false"
 
