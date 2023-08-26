@@ -76,6 +76,7 @@ class MergeExcelSheet:
             # self.__clear_auto_filter(ws)
         else:
             ws = self.__wb.create_sheet(index=0, title=sheet_name)
+            print(f"\tadd_sheet {sheet_name} index={0}")
 
         row_offset = util.get_row_offset(ws)
         for merge_cmds in merge_data.cmds:
