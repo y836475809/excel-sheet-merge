@@ -38,12 +38,15 @@ class MergeExcelSheet:
     __excel_filepath: str
     __merged_filepath: str
     __staged: str
+    __row_start_not_empty: bool
 
-    def __init__(self, excel_filepath: str, staged: bool):
+    def __init__(self, excel_filepath: str, staged: bool, row_start_not_empty: bool):
         self.__excel_filepath = excel_filepath
         self.__staged = ""
         if staged:
             self.__staged = "--cached"
+        self.__row_start_not_empty = row_start_not_empty
+
         dir_name = os.path.dirname(self.__excel_filepath)
         filename = os.path.splitext(os.path.basename(self.__excel_filepath))[0]
         _, ext = os.path.splitext(self.__excel_filepath)
@@ -78,7 +81,10 @@ class MergeExcelSheet:
             ws = self.__wb.create_sheet(index=0, title=sheet_name)
             print(f"\tadd_sheet {sheet_name} index={0}")
 
-        row_offset = util.get_row_offset(ws)
+        row_offset = 0
+        if self.__row_start_not_empty:
+            row_offset = util.get_row_offset(ws)
+
         for merge_cmds in merge_data.cmds:
             do_addrow = False
             for merge_cmd in merge_cmds:
