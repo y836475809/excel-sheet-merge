@@ -1,6 +1,7 @@
 # coding=utf-8
 import os
 import shutil
+from enum import Enum
 
 import csv
 import subprocess
@@ -33,19 +34,24 @@ class MergeData:
         self.cmds = []
 
 
+class StartRow(Enum):
+    First = 1
+    NotNone = 2
+
+
 class MergeExcelSheet:
     __wb: openpyxl.Workbook
     __excel_filepath: str
     __merged_filepath: str
     __staged: str
-    __row_start_not_empty: bool
+    __start_row: StartRow
 
-    def __init__(self, excel_filepath: str, staged: bool, row_start_not_empty: bool):
+    def __init__(self, excel_filepath: str, staged: bool, start_row: StartRow):
         self.__excel_filepath = excel_filepath
         self.__staged = ""
         if staged:
             self.__staged = "--cached"
-        self.__row_start_not_empty = row_start_not_empty
+        self.__start_row = start_row
 
         dir_name = os.path.dirname(self.__excel_filepath)
         filename = os.path.splitext(os.path.basename(self.__excel_filepath))[0]
@@ -82,7 +88,7 @@ class MergeExcelSheet:
             print(f"\tadd_sheet {sheet_name} index={0}")
 
         row_offset = 0
-        if self.__row_start_not_empty:
+        if self.__start_row == StartRow.NotNone:
             row_offset = util.get_row_offset(ws)
 
         for merge_cmds in merge_data.cmds:

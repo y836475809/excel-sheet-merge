@@ -3,11 +3,11 @@ import os
 import sys
 
 import util
-from merge_excel_sheet import MergeExcelSheet
+from merge_excel_sheet import StartRow, MergeExcelSheet
 
 
-def main(excel_filepath: str, staged: bool, row_start_not_empty: bool):
-    mes = MergeExcelSheet(excel_filepath, staged, row_start_not_empty)
+def main(_excel_filepath: str, _staged: bool, _start_row: StartRow):
+    mes = MergeExcelSheet(_excel_filepath, _staged, _start_row)
     mes.merge()
     mes.save_merged_file()
 
@@ -16,9 +16,9 @@ if __name__ == "__main__":
     args = sys.argv
     if len(args) < 4:
         print(f"invalid argument")
-        print(f"usage: {os.path.basename(args[0])} excel_filepath staged row_start")
+        print(f"usage: {os.path.basename(args[0])} excel_filepath staged start_row")
         print(f"staged: staged or no-staged")
-        print(f"row_start: row1 or row_not_empty")
+        print(f"start_row: row_first or row_not_none")
         sys.exit()
 
     if not util.git_core_quotepath_is_false():
@@ -40,14 +40,14 @@ if __name__ == "__main__":
         print(f"{staged_arg} is not staged or no-staged")
         sys.exit()
 
-    row_start_not_empty = True
-    row_start_arg = args[3]
-    if row_start_arg == "row1":
-        row_start_not_empty = False
-    elif row_start_arg == "row_not_empty":
-        row_start_not_empty = True
+    start_row = StartRow.First
+    start_row_arg = args[3]
+    if start_row_arg == "row_first":
+        start_row = StartRow.First
+    elif start_row_arg == "row_not_none":
+        start_row = StartRow.NotNone
     else:
-        print(f"{row_start_arg} is not row1 or row_not_empty")
+        print(f"{start_row_arg} is not row_first or row_not_none")
         sys.exit()
 
-    main(target_filepath, staged, row_start_not_empty)
+    main(target_filepath, staged, start_row)
