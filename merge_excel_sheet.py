@@ -148,8 +148,12 @@ class MergeExcelSheet:
                     tmp_cmds.append(
                         MergeCommand("del_row", row_index, abs(df)))
                 if len(ddp) > 0:
-                    tmp_cmds.append(
-                        MergeCommand("set_row", row_index, len(ddp), ddp))
+                    if df > 0 and len(ddm) > 0:
+                        tmp_cmds.append(
+                            MergeCommand("set_row", row_index - 1, len(ddp), ddp))
+                    else:
+                        tmp_cmds.append(
+                            MergeCommand("set_row", row_index, len(ddp), ddp))
                 cmds.insert(0, tmp_cmds)
         merge_data.cmds = cmds
         return merge_data
